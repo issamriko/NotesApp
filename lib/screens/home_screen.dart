@@ -10,10 +10,22 @@ class Homescreen extends StatefulWidget {
 
 class _HomescreenState extends State<Homescreen> {
   Sqldb sqldb = Sqldb();
+  bool isloading = true;
+  List notes = [];
 
-  Future<List<Map>> getdatafromdb() async {
+  Future getdatafromdb() async {
     List<Map> response = await sqldb.getdata("SELECT * FROM notes");
-    return response;
+    notes.addAll(response);
+    isloading = false;
+    if (this.mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void initState() {
+    getdatafromdb();
+    super.initState();
   }
 
   @override
@@ -32,31 +44,32 @@ class _HomescreenState extends State<Homescreen> {
         child: ListView(
           children: [
             ElevatedButton(
-                onPressed: () async{
-                 await sqldb.deletemydatabase();
+                onPressed: () async {
+                  await sqldb.deletemydatabase();
                 },
                 child: Text("delete data base")),
-            FutureBuilder(
-              future: getdatafromdb(),
-              builder:
-                  (BuildContext context, AsyncSnapshot<List<Map>> snapshot) {
-                if (snapshot.hasData) {
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: snapshot.data!.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        child: ListTile(
-                          title: Text("${snapshot.data![index]['note']}"),
-                          subtitle: Text("${snapshot.data![index]['color']}"),
-                        ),
-                      );
-                    },
-                  );
-                }
-                return Center(
-                  child: CircularProgressIndicator(),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: notes.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  child: ListTile(
+                    title: Text("${notes[index]['note']}"),
+                    subtitle: Text("${notes[index]['color']}"),
+                    trailing: IconButton(
+                        onPressed: () async {
+                          int response = await sqldb.deletedata(
+                              "DELETE FROM notes WHERE id = ${notes[index]['id']}");
+                          if (response > 0) {
+                            setState(() {
+                              notes.removeWhere((element) =>
+                                  element['id'] == notes[index]['id']);
+                            });
+                          }
+                        },
+                        icon: Icon(Icons.delete, color: Colors.red)),
+                  ),
                 );
               },
             ),
